@@ -1,0 +1,57 @@
+research:
+  max_words: 120              # keep tight for 60s shorts; raise to 400+ for 5-min videos
+
+agents:
+  research:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.3          # low temp for factual accuracy
+
+  script:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.7
+
+  quality_gate:
+    provider: groq
+    model: llama-3.1-8b-instant   # scoring task — 8B is plenty, much faster
+    temperature: 0.2
+
+  screenplay:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.6
+
+  image_prompts:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.8
+
+  metadata:
+    provider: groq
+    model: llama-3.1-8b-instant   # title/hashtag generation — 8B is fast and sufficient
+    temperature: 0.9
+
+# Free image generation — no API key required
+# Switch provider to "google" for Imagen 3 (requires billing)
+image_generation:
+  provider: pollinations
+  # provider: google
+  # model: imagen-3.0-generate-002
+  aspect_ratio: "9:16"
+
+tts:
+  provider: edge_tts
+  voice: "en-US-AriaNeural"
+  volume: "+0%"
+
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  output_dir: "outputs"
+  caption_font_size: 58
+  caption_color: "white"
+  caption_stroke_color: "black"
+  caption_stroke_width: 3
+  fade_duration: 0.4
