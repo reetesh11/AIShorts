@@ -10,15 +10,41 @@ A single topic string enters the pipeline. A production-ready `.mp4` exits.
 
 ## Pipeline
 
-```
-┌─────────┐   ┌────────┐   ┌──────────────┐   ┌────────────┐   ┌──────────────┐
-│research │──▶│ script │──▶│ quality_gate │──▶│ screenplay │──▶│ image_prompt │
-└─────────┘   └────────┘   └──────────────┘   └────────────┘   └──────────────┘
-                                                                        │
-                                                                        ▼
-┌────────┐   ┌──────────┐   ┌──────────┐   ┌───────────┐   ┌───────────────┐
-│ output │◀──│  stitch  │◀──│ metadata │◀──│ voiceover │◀──│   image_gen   │
-└────────┘   └──────────┘   └──────────┘   └───────────┘   └───────────────┘
+```mermaid
+flowchart TD
+    TOPIC(["📝 Topic String"])
+    OUTPUT(["🎬 short.mp4 + description.md + meta.json"])
+
+    subgraph TEXT ["LLM — Text Agents"]
+        direction TB
+        A["🔍 research_agent\nGroq llama-3.3-70b · temp 0.3"]
+        B["✍️ script_agent\nGroq llama-3.3-70b · temp 0.7"]
+        C["✅ quality_gate_agent\nGroq llama-3.1-8b · temp 0.2"]
+        D["🎬 screenplay_agent\nGroq llama-3.3-70b · temp 0.6"]
+        E["🖼️ image_prompt_agent\nGroq llama-3.3-70b · temp 0.8"]
+    end
+
+    subgraph MEDIA ["Media Generation"]
+        direction TB
+        F["⚡ image_gen_agent\nPollinations FLUX · ThreadPoolExecutor ×3"]
+        G["🎙️ voiceover_agent\nedge-tts Azure Neural · asyncio.gather"]
+        H["📊 metadata_agent\nGroq llama-3.1-8b · temp 0.9"]
+    end
+
+    subgraph ASSEMBLE ["Assembly & Output"]
+        direction TB
+        I["🎞️ stitch_agent\nmoviepy · Pillow · karaoke captions"]
+        J["💾 output_agent\ndescription.md · meta.json"]
+    end
+
+    TOPIC --> A --> B --> C --> D --> E
+    E --> F --> G --> H --> I --> J --> OUTPUT
+
+    style TEXT fill:#1e3a5f,stroke:#4a90d9,color:#fff
+    style MEDIA fill:#1e4a2e,stroke:#4a9d5e,color:#fff
+    style ASSEMBLE fill:#4a2e1e,stroke:#9d6a4a,color:#fff
+    style TOPIC fill:#2a2a2a,stroke:#888,color:#fff
+    style OUTPUT fill:#2a2a2a,stroke:#888,color:#fff
 ```
 
 > **Why sequential and not parallel?** LangGraph's fan-in mechanism triggers a downstream node once per incoming edge. If parallel branches have unequal depths, the downstream node fires multiple times. Sequential sidesteps this entirely with no performance cost — the real bottleneck is image generation (network I/O), which is parallelised internally within the `image_gen` node using `ThreadPoolExecutor`.
@@ -212,6 +238,36 @@ ShortsState
 ```
 
 The `errors` field uses `Annotated[list[str], operator.add]` so any agent can append errors without overwriting another agent's errors.
+
+### State data flow
+
+```mermaid
+flowchart LR
+    TOPIC(["topic\ncfg"])
+
+    TOPIC --> RA["research_agent"]
+    RA -->|"research_summary\nkey_facts\ntarget_audience\nunique_angle"| SA
+
+    SA["script_agent"] -->|"hook\nfull_script\ncta"| QG
+
+    QG{"quality_gate_agent\n(may patch hook\n+ full_script)"} -->|"quality_approved\nquality_notes\n± hook\n± full_script"| SCA
+
+    SCA["screenplay_agent"] -->|"art_style\nscene_plans[ ]"| IPA
+
+    IPA["image_prompt_agent"] -->|"image_prompts[ ]"| IGA
+
+    IGA["image_gen_agent"] -->|"generated_images[ ]"| VA
+
+    VA["voiceover_agent"] -->|"scene_audios[ ]\n(audio_path · word_timings · duration)"| MA
+
+    MA["metadata_agent"] -->|"metadata{ }\n(title · description\nhashtags · thumbnail)"| ST
+
+    ST["stitch_agent"] -->|"video_path"| OA
+
+    OA["output_agent"] -->|"output_dir"| DONE(["📹 Done"])
+
+    style QG fill:#4a2e1e,stroke:#9d6a4a,color:#fff
+```
 
 ---
 
